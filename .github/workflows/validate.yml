@@ -1,0 +1,32 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Selftest
+        run: python3 -m omf.validate --selftest
+      - name: Strict valid example
+        run: python3 -m omf.validate --strict examples/minimal
+      - name: Closed ownerless negative example fails
+        run: |
+          if python3 -m omf.validate examples/bad-closed-without-owner; then
+            echo "negative example unexpectedly passed" >&2
+            exit 1
+          fi
+      - name: RSVP attendance negative example fails
+        run: |
+          if python3 -m omf.validate examples/bad-rsvp-as-attendance; then
+            echo "negative example unexpectedly passed" >&2
+            exit 1
+          fi
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests -v
