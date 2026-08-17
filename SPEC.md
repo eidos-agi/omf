@@ -1,4 +1,4 @@
-# OMF v0.1.0 — Open Meeting Format
+# OMF v0.1.1 — Open Meeting Format
 
 **An additive profile of [OKF v0.2](https://github.com/eidos-agi/okflify).** Every OMF document
 is a valid OKF document. Renderers that know only OKF display it correctly and ignore profile
@@ -17,7 +17,7 @@ investigation (ORF), and not a task tracker (Linear / docket.md).
 ```yaml
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 profile: omf
 type: meeting
 omf_id: omf:founders:20260701T180411Z-1a2b3c@eidosagi.com#2026-07-06T02:00:00Z
@@ -179,7 +179,7 @@ document that N occurrence packs point at:
 ```yaml
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: series
 omf_id: omf:founders:20260701T180411Z-1a2b3c@eidosagi.com
 title: "Founder call — weekly"
@@ -204,14 +204,15 @@ Occurrence packs carry the same `icalendar_uid` and differ by `source.recurrence
 | `type` | MUST | `meeting` |
 | `omf_id` | MUST | Stable, immutable id (see §5) |
 | `title` | MUST | Display title |
-| `status` | MUST | `proposed` \| `scheduled` \| `cancelled` \| `held` \| `capturing` \| `reconciling` \| `closed` \| `archived` |
+| `status` | MUST | `proposed` \| `scheduled` \| `cancelled` \| `held` \| `capturing` \| `reconciling` \| `closed` \| `archived`. An importer creating a pack from past evidence MUST write `held` — never `closed`, which asserts a human close that did not happen |
 | `sensitivity` | MUST | `public` \| `internal` \| `confidential` \| `restricted` |
 | `starts_at_utc` | MUST unless `status: proposed` | Normalized UTC start — the cross-source join key |
 | `ends_at_utc` | SHOULD | Normalized UTC end |
-| `source` | MUST | `authority`, plus RFC 5545 fields when calendar-sourced |
+| `source` | MUST | `authority`, plus RFC 5545 fields when calendar-sourced. Producers MAY add source-system scoping keys (e.g. `drive_parent_id`) — unrecognized `source.*` keys are preserved, not errors |
 | `capture` | MUST when `status` ∈ {held, capturing, reconciling, closed} | Per-slot `present` \| `absent` \| `not_attempted` |
 | `series` | MUST be present as key | Path to series doc, or explicit `null` for one-offs |
 | `verified` | MUST | OKF trust block (`by`, `at`, `method`, `stale_after`) |
+| `tree` | SHOULD | Declared pack tree convention (see §12), so a reader never guesses |
 | `imports` | MAY | Declared external pack closures |
 | `policy` / `research` | MAY | Pinned EMF / ORF refs |
 | `non_goals` | SHOULD | Explicit exclusions |
@@ -247,6 +248,35 @@ Rules that bite:
 6. Producers MUST NOT merge two occurrences because their titles match. Title similarity is
    never identity.
 
+### 5.1 Producer-scoped slug (no calendar source)
+
+When `<producer-scoped-slug>` applies, producers MUST derive it deterministically from source
+evidence, never from a title. The reference derivation, which importers SHOULD follow:
+
+| Available evidence | Slug |
+| :----------------- | :--- |
+| A conferencing code (e.g. Meet `xxx-yyyy-zzz`) | the code, lowercased |
+| No code, only a timestamped artifact | `notes-<starts_at_utc>` |
+
+The slug MUST be stable across re-imports of the same source object. A slug derived from a
+mutable field (title, filename, display name) is non-conforming, because a rename would mint a
+second pack for one meeting.
+
+### 5.2 Grouping: deciding two artifacts are the same meeting
+
+Joining is not the same as identity. `omf_id` names a meeting; grouping decides which artifacts
+belong to it. Producers MUST apply these in order and MUST NOT skip to a weaker signal:
+
+1. **Exact normalized `starts_at_utc`.** The only primary key.
+2. **Conferencing code**, when present on both sides and step 1 disagrees. A shared Meet code
+   with clashing clocks is one meeting with a **clock conflict**, not two meetings.
+3. **Stop.** If neither resolves it, emit separate packs. An unresolved group is two honest packs;
+   a wrong merge is unrecoverable, because the write-once rule means the loser's bytes are gone.
+
+Title similarity MUST NOT be used at any step, including as a tiebreak. When step 2 resolves a
+group whose clocks disagree, the producer MUST write a `conflicts/` document holding both
+readings (see §8) rather than electing a winner.
+
 ---
 
 ## 6. Capture, artifacts, and the honesty rules
@@ -265,6 +295,12 @@ Writing `absent` when the truth is `not_attempted` is an **error** if the produc
 apart. This distinction exists because a tenant with Meet transcripts disabled in Admin will
 otherwise report an infinite series of empty transcripts as real evidence.
 
+The `capture` face value is the normative record of a slot's state. A slot that is not `present`
+requires **no directory and no placeholder document** — `transcript/` and `invite/` MUST be omitted
+entirely when their slot is `absent` or `not_attempted`. Producers MUST NOT write an empty
+`transcript/index.md` to mirror a fuller example: an empty container invites a later reader, human
+or agent, to treat the slot as attempted-and-empty rather than never-run.
+
 ### Artifacts are pointers
 
 Each file under `artifacts/` is an OKF concept describing **one bound file**. It MUST NOT contain
@@ -273,7 +309,7 @@ the file's bytes.
 ```yaml
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: artifact
 title: "Meet recording — abc-defg-hij"
 kind: recording            # recording | transcript | notes | deck | whiteboard | chat_log | attachment
@@ -304,7 +340,9 @@ Rules:
 
 1. No producer — human, job, or agent — may edit or reflow them.
 2. Corrections are new documents under `evidence/` or `conflicts/` that reference the segment id.
-3. `transcript/index.md` describes coverage and provenance; it MUST NOT paraphrase the content.
+3. `transcript/index.md` describes coverage and provenance **when the slot is `present`**; it MUST
+   NOT paraphrase the content. When the slot is `absent` or `not_attempted`, omit `transcript/`
+   entirely and let the face carry the state.
 4. Diarization labels are claims, not facts. A `segment.speaker` carries its own `confidence`.
 
 Segment shape (JSONL, one object per line, append-only):
@@ -322,7 +360,7 @@ One file per person under `participants/`.
 ```yaml
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: participant
 title: "Second founder"
 identity: cofounder@example.com
@@ -354,7 +392,7 @@ Rules:
 ```yaml
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: decision
 title: "kai imports Meet records as kai@, not as Daniel"
 binding: true
@@ -376,7 +414,7 @@ room becomes a record; only a person turns a record into work.*
 ```yaml
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: commitment
 title: "Enable Meet transcripts in Workspace Admin"
 owner: human:daniel          # MUST NOT be null when state is open
@@ -404,7 +442,7 @@ When two sources disagree about the same fact, record both:
 ```yaml
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: conflict
 title: "Start time disagreement between recording title and notes title"
 about: starts_at_utc
@@ -442,7 +480,14 @@ Producers MUST NOT resolve a conflict by overwriting. Later imports do not win b
 - Modification of `transcript/segments.jsonl` or `invite/original.ics` after first write ⇒ error
   (enforced by producers and by CI content hash, not by the document schema).
 - Secret-shaped strings anywhere in the pack ⇒ error (inherited from the OPFF gate; meeting
-  recordings routinely contain spoken credentials).
+  recordings routinely contain spoken credentials). Detection is **pattern-first** for known
+  credential formats (AWS, GitHub, Google OAuth/API, JWT, private-key headers), with a length +
+  entropy sweep as backstop. A **`locator` is required content and MUST NOT be reported as a
+  credential**: URIs are excluded from the entropy sweep, so real `https://drive.google.com/...`
+  and `gdrive://...` values pass. Pattern checks still run against the unmasked text, so a
+  credential smuggled into a query string is caught. A validator that rejects real locators is
+  non-conforming — it teaches producers to strip provenance to satisfy the linter, which defeats
+  the point of the field.
 - `sensitivity: restricted` packs MUST be excluded from shared renders by default.
 - Capital `verdict` (ODDF), finance `postings` (OPFF), or research `evidence` grades (ORF) present
   on an OMF face ⇒ warn (wrong profile).

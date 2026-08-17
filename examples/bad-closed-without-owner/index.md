@@ -1,6 +1,6 @@
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 profile: omf
 type: meeting
 omf_id: omf:negative:ownerless-close#2026-07-07T10:00:00Z

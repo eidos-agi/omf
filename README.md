@@ -5,7 +5,7 @@
 
 **A protocol / standard — not a meeting warehouse.** This repository is the **spec + validator + fictional examples**. Meeting packs live next to the work (for example under `.meetings/<omf_id>/`); this repository does not own meeting records.
 
-**OMF v0.1.0** is an additive profile of [OKF v0.2](https://github.com/eidos-agi/okflify). Every OMF document is a valid OKF document. Renderers that know only OKF display the document and ignore OMF profile keys.
+**OMF v0.1.1** is an additive profile of [OKF v0.2](https://github.com/eidos-agi/okflify). Every OMF document is a valid OKF document. Renderers that know only OKF display the document and ignore OMF profile keys.
 
 ```text
 OKF  — knowledge and trust                 https://github.com/eidos-agi/okflify
@@ -71,7 +71,7 @@ meeting-occurrence/
   participants/*.md                # invited versus observed attendance
   agenda/*.md
   artifacts/*.md                   # pointer docs; no media bytes
-  transcript/index.md              # provenance and coverage
+  transcript/index.md              # provenance and coverage (only when transcript is present)
   outcomes/decisions/*.md
   outcomes/commitments/*.md
   outcomes/questions/*.md

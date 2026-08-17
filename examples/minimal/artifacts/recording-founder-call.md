@@ -1,6 +1,6 @@
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: artifact
 title: "Meet recording — fictional founder call"
 kind: recording

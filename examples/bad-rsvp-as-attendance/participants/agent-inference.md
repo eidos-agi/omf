@@ -1,6 +1,6 @@
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: participant
 title: "Negative fixture participant"
 identity: attendee@example.test

@@ -1,6 +1,6 @@
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 profile: omf
 type: meeting
 omf_id: omf:founders:fictional-founder-weekly#2026-07-06T02:00:00Z
@@ -20,6 +20,7 @@ capture:
   recording: present
   transcript: not_attempted
   notes: present
+tree: ".meetings/<omf_id>/"
 imports: []
 policy: []
 research: []

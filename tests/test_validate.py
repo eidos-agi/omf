@@ -9,6 +9,7 @@ from omf.validate import (
     OMF_VERSION,
     Problem,
     parse_frontmatter,
+    secret_problems,
     validate_artifact,
     validate_common,
     validate_face,
@@ -148,3 +149,42 @@ class OMFValidatorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SecretDetectorRegression(unittest.TestCase):
+    """Regression: v0.1.0 flagged every real Drive locator as a credential while
+    missing canonical cloud keys. Reported by kai during first integration."""
+
+    REQUIRED_LOCATORS = [
+        "locator: https://drive.google.com/file/d/1uWsiUUP43X9istnbmF8ALhALoECOWoZk/view",
+        "locator: https://docs.google.com/document/d/1HDC2Umnem0iWLxprwgOlDZ-18T1tNnjEebTzEkkQh1k/edit",
+        "locator: gdrive://file/1uWsiUUP43X9istnbmF8ALhALoECOWoZk",
+        "locator: https://meet.google.com/hjr-jczn-ixk",
+    ]
+
+    REAL_CREDENTIALS = [
+        "aws_key: AKIAIOSFODNN7EXAMPLE",
+        "ghp_16C7e42F292c6912E7710c838347Ae178B4a1b2c",
+        "token: ya29.a0AfB_byC3xample-token-value-here-long",
+        "AIzaSyD-1234567890abcdefghijklmnopqrstu",
+        "sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig",
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "0123456789abcdef0123456789abcdef0123456789ab",
+    ]
+
+    def test_locators_are_not_secrets(self):
+        for text in self.REQUIRED_LOCATORS:
+            with self.subTest(text=text):
+                self.assertEqual(secret_problems(text), [], "a locator is required content, never a credential")
+
+    def test_known_credentials_are_caught(self):
+        for text in self.REAL_CREDENTIALS:
+            with self.subTest(text=text):
+                self.assertTrue(secret_problems(text), "known credential shape must be rejected")
+
+    def test_credential_inside_a_url_still_caught(self):
+        self.assertTrue(secret_problems("https://api.example.com/v1?access_token=AKIAIOSFODNN7EXAMPLE"))
+
+    def test_uri_masking_does_not_hide_adjacent_secret(self):
+        self.assertTrue(secret_problems("see https://drive.google.com/file/d/abc/view then AKIAIOSFODNN7EXAMPLE"))

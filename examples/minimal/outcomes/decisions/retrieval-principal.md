@@ -1,6 +1,6 @@
 ---
 okf_version: "0.2"
-omf_version: "0.1.0"
+omf_version: "0.1.1"
 type: decision
 title: "Retrieve fictional meeting records with the shared operator identity"
 binding: true

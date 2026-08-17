@@ -34,6 +34,26 @@ VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 # Kept deliberately conservative; the long opaque-token check adds the entropy gate.
 SECRETISH = re.compile(r"(?i)(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\b(?:api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[^\s'\"]{8,}|\bBearer\s+[A-Za-z0-9._~+/-]{16,}|\b(?:sk_live_|sk_test_|xox[baprs]-)[A-Za-z0-9_-]+|(?:postgres(?:ql)?|mysql)://[^\s:]+:[^\s@]+@)")
 
+# Known credential shapes. Pattern-first detection: these are the strings that actually
+# leak, and several are too short or too low-entropy for a length heuristic to catch.
+KNOWN_SECRET = re.compile(
+    r"(?:\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"                     # AWS access key id
+    r"|\bghp_[A-Za-z0-9]{36}\b|\bgh[osu]_[A-Za-z0-9]{36}\b"  # GitHub PAT / OAuth
+    r"|\bgithub_pat_[A-Za-z0-9_]{22,}\b"                     # GitHub fine-grained PAT
+    r"|\bya29\.[A-Za-z0-9._-]{20,}"                          # Google OAuth access token
+    r"|\bAIza[A-Za-z0-9_-]{35}\b"                            # Google API key
+    r"|\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}"                    # OpenAI-style key
+    r"|\bxapp-[0-9]-[A-Za-z0-9-]{10,}"                       # Slack app token
+    r"|\bglpat-[A-Za-z0-9_-]{20,}"                           # GitLab PAT
+    r"|\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\."     # JWT (header.payload.)
+    r")"
+)
+
+# A locator is REQUIRED content in every OMF artifact doc, so URIs must never be mistaken
+# for credentials. Masked out before the entropy sweep; SECRETISH and KNOWN_SECRET still
+# run against the unmasked text so a credential embedded in a query string is caught.
+URI_RE = re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s'\"<>)\]}]+", re.I)
+
 
 @dataclass
 class Problem:
@@ -206,7 +226,7 @@ def _parse_utc(value: Any) -> datetime | None:
 
 
 def _high_entropy_token(token: str) -> bool:
-    if len(token) < 40 or re.fullmatch(r"[0-9a-fA-F]+", token) is None and re.fullmatch(r"[A-Za-z0-9+/=_-]+", token) is None:
+    if len(token) < 40 or re.fullmatch(r"[0-9a-fA-F]+", token) is None and re.fullmatch(r"[A-Za-z0-9+=_-]+", token) is None:
         return False
     alphabet = len(set(token))
     return alphabet >= 10 and any(c.isdigit() for c in token) and any(c.isalpha() for c in token)
@@ -215,7 +235,11 @@ def _high_entropy_token(token: str) -> bool:
 def secret_problems(text: str) -> list[Problem]:
     if SECRETISH.search(text):
         return [Problem("error", "secrets", "secret-shaped string detected — use a credential-plane locator, never a credential")]
-    for token in re.findall(r"[A-Za-z0-9+/=_-]{40,}", text):
+    if KNOWN_SECRET.search(text):
+        return [Problem("error", "secrets", "known credential format detected (cloud/API/VCS token) — never commit a credential to a pack")]
+    # Locators are required content. Mask URIs so a Drive/Meet link is not read as a key.
+    scannable = URI_RE.sub(" ", text)
+    for token in re.findall(r"[A-Za-z0-9+=_-]{40,}", scannable):
         if _high_entropy_token(token):
             return [Problem("error", "secrets", "long high-entropy hex/base64-shaped string detected")]
     return []
@@ -555,9 +579,9 @@ def selftest() -> int:
     assert "starts_at_utc" in errors({**base, "starts_at_utc": "2026-01-01T10:00:00-06:00"})
     assert "ends_at_utc" in errors({**base, "ends_at_utc": "2026-01-01T09:00:00Z"})
     assert "series_identity" in errors({**base, "omf_id": "omf:test:uid"})
-    assert any(x.rule == "attended.observed" for x in validate_participant({"okf_version": "0.2", "omf_version": "0.1.0", "type": "participant", "attended": {"observed": True, "by": "agent:x"}}))
-    assert any(x.rule == "owner" for x in validate_outcome({"okf_version": "0.2", "omf_version": "0.1.0", "type": "commitment", "state": "open", "owner": None}))
-    assert any(x.rule == "binding" for x in validate_outcome({"okf_version": "0.2", "omf_version": "0.1.0", "type": "decision", "binding": True, "decided_by": "agent:x"}))
+    assert any(x.rule == "attended.observed" for x in validate_participant({"okf_version": "0.2", "omf_version": "0.1.1", "type": "participant", "attended": {"observed": True, "by": "agent:x"}}))
+    assert any(x.rule == "owner" for x in validate_outcome({"okf_version": "0.2", "omf_version": "0.1.1", "type": "commitment", "state": "open", "owner": None}))
+    assert any(x.rule == "binding" for x in validate_outcome({"okf_version": "0.2", "omf_version": "0.1.1", "type": "decision", "binding": True, "decided_by": "agent:x"}))
     assert secret_problems("Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456")
     print("selftest OK — face gates, UTC times, capture honesty, attendance, outcomes, and secret detection")
     return 0
