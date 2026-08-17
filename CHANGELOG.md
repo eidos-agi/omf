@@ -17,6 +17,12 @@ First-integration fixes. Every item below came from `kai` attempting a real impo
   JWT shapes, with the length+entropy sweep kept as backstop. Pattern checks run against the
   unmasked text, so a credential in a query string is still caught.
 
+- **Stale version in the normative face table.** §4 still required `omf_version: "0.1.0"` after
+  the bump, so an implementer following the table would fail `--strict`. Also corrected in §12 and
+  the validator docstring. A `VersionConsistency` test now pins the spec table, `pyproject.toml`,
+  and every example doc to the implemented `OMF_VERSION`, so a bump cannot desync again — both of
+  kai's first two reports traced to a documented value drifting from the implemented one.
+
 ### Clarified in the spec
 
 - **§5.1** — deterministic producer-scoped slug derivation for calendar-less packs

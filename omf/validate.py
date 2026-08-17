@@ -1,4 +1,4 @@
-"""omf.validate — check documents and packs against OMF v0.1.0.
+"""omf.validate — check documents and packs against OMF v0.1.1.
 
 A format without a checker is a suggestion. Stdlib only: this module parses the
 small YAML frontmatter subset used by OMF without requiring PyYAML.

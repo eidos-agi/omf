@@ -123,7 +123,7 @@ class OMFValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             pack = self.copy_minimal(Path(td) / "pack")
             (pack / "evidence").mkdir()
-            (pack / "evidence" / "note.md").write_text("---\nokf_version: \"0.2\"\nomf_version: \"0.1.0\"\ntype: evidence\n---\nBearer abcdefghijklmnopqrstuvwxyz123456\n", encoding="utf-8")
+            (pack / "evidence" / "note.md").write_text("---\nokf_version: \"0.2\"\nomf_version: \"0.1.1\"\ntype: evidence\n---\nBearer abcdefghijklmnopqrstuvwxyz123456\n", encoding="utf-8")
             p = {x.rule for r in validate_pack(pack) for x in r.problems}
             self.assertIn("secrets", p)
 
@@ -188,3 +188,29 @@ class SecretDetectorRegression(unittest.TestCase):
 
     def test_uri_masking_does_not_hide_adjacent_secret(self):
         self.assertTrue(secret_problems("see https://drive.google.com/file/d/abc/view then AKIAIOSFODNN7EXAMPLE"))
+
+
+class VersionConsistency(unittest.TestCase):
+    """Guard: kai's first two integration reports were both caused by a documented
+    value drifting from the implemented one. A version bump must never desync the
+    normative spec table, the packaging metadata, and the shipped examples again."""
+
+    ROOT = Path(__file__).resolve().parent.parent
+
+    def test_spec_face_table_matches_implementation(self):
+        spec = (self.ROOT / "SPEC.md").read_text(encoding="utf-8")
+        self.assertIn(f'| `omf_version` | MUST | `"{OMF_VERSION}"` (this profile) |', spec,
+                      "SPEC face table declares a version the validator does not implement")
+
+    def test_pyproject_matches_implementation(self):
+        pyproject = (self.ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn(f'version = "{OMF_VERSION}"', pyproject)
+
+    def test_every_example_doc_declares_current_version(self):
+        stale = [
+            str(p.relative_to(self.ROOT))
+            for p in (self.ROOT / "examples").rglob("*.md")
+            if "omf_version:" in p.read_text(encoding="utf-8")
+            and f'omf_version: "{OMF_VERSION}"' not in p.read_text(encoding="utf-8")
+        ]
+        self.assertEqual(stale, [], f"example docs declare a stale omf_version: {stale}")

@@ -199,7 +199,7 @@ Occurrence packs carry the same `icalendar_uid` and differ by `source.recurrence
 | Field | Required | Meaning |
 |-------|----------|---------|
 | `okf_version` | MUST | `"0.2"` |
-| `omf_version` | MUST | `"0.1.0"` (this profile) |
+| `omf_version` | MUST | `"0.1.1"` (this profile) |
 | `profile` | MUST | `omf` |
 | `type` | MUST | `meeting` |
 | `omf_id` | MUST | Stable, immutable id (see §5) |
@@ -534,6 +534,6 @@ meeting corpus. kai, tabletop, and Workspace importers are consumers that write 
 
 | | |
 |--|--|
-| Profile | OMF **0.1.0** |
+| Profile | OMF **0.1.1** |
 | Base | OKF **0.2** |
 | Status | Draft — dogfood with kai Workspace import |

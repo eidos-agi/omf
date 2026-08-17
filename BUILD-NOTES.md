@@ -2,7 +2,7 @@
 
 ## Prominent human-review decisions / ambiguities
 
-1. **Version acceptance:** OMF requires an `X.Y.Z` `omf_version`, while this repository implements `0.1.0`. The validator accepts any semantic version shape and warns when it differs from `0.1.0`, matching sibling validator behavior; it does not require an exact patch version.
+1. **Version acceptance:** OMF requires an `X.Y.Z` `omf_version`, while this repository implements the version in `omf/__init__.py`. The validator accepts any semantic version shape and warns when it differs from that version, matching sibling validator behavior; it does not require an exact patch version.
 2. **Calendar source detection:** `source.authority` values containing `calendar` (such as `google_calendar`) are treated as calendar-sourced. They require UID, recurrence-id key, sequence, DTSTAMP, and `invite/original.ics`. A series occurrence additionally needs a non-null recurrence id.
 3. **Capture binding:** `capture.<slot>: present` is treated as requiring an `artifacts/*.md` pointer whose `kind` equals that slot. `absent` and `not_attempted` do not require a pointer.
 4. **Agent authorship fields:** Agent authorship is read from the semantically specific field first (`decided_by`, `authored_by`, `proposed_by`, then `by` / `verified.by`). This makes the authored-by gate work for both concise and fully-provenanced documents.
