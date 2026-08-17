@@ -25,6 +25,11 @@ First-integration fixes. Every item below came from `kai` attempting a real impo
 
 ### Clarified in the spec
 
+- **§8** — a conflict is a disagreement about the **instant**, never the label. `03:28 GMT` and
+  `03:28 UTC` name one instant and MUST NOT produce a `conflicts/` document. Added after an
+  incorrect test oracle claimed a GMT-vs-UTC clock conflict in a corpus that had none; kai
+  challenged the oracle and a live listing proved kai right.
+
 - **§5.1** — deterministic producer-scoped slug derivation for calendar-less packs
   (conferencing code, else `notes-<starts_at_utc>`); slugs derived from mutable fields are
   non-conforming.

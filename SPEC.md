@@ -458,6 +458,18 @@ resolution: null             # null until a human decides
 
 Producers MUST NOT resolve a conflict by overwriting. Later imports do not win by being later.
 
+### A conflict is a disagreement about the instant, never about the label
+
+Normalize first, compare second. Two sources whose timezone **labels** differ but whose values
+normalize to the same instant do **not** conflict, and a producer MUST NOT write a `conflicts/`
+document for them. `03:28 GMT` and `03:28 UTC` name one instant; recording that pair as a
+disagreement manufactures noise, and a pack full of non-conflicts trains readers to skip the
+directory that exists to hold the real ones.
+
+A `conflicts/` document is warranted only when the normalized values differ — `03:28Z` versus
+`08:28Z`, as above. The original labels are preserved in `source` regardless, so nothing is lost by
+declining to call an equivalent label a conflict.
+
 ---
 
 ## 9. Conformance
